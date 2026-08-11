@@ -128,6 +128,8 @@ if env['HAVE_DRAMSYS']:
     SimObject('DRAMSys.py', sim_objects=['DRAMSys'])
     Source('dramsys_wrapper.cc')
     Source('dramsys.cc')
+    env.Append(LIBS=['pim_vm'])
+    env.Append(LIBPATH=['#build/ARM/ext/dramsys/DRAMSys'])
 
 SimObject('MemChecker.py', sim_objects=['MemChecker', 'MemCheckerMonitor'])
 Source('mem_checker.cc')

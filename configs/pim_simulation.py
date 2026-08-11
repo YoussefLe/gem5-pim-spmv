@@ -5,6 +5,7 @@ import dataclasses
 from gem5.isas import ISA
 from m5.objects import (
     ArmDefaultRelease,
+    AddrRange,
 )
 from gem5.utils.requires import requires
 from gem5.resources.workload import CustomWorkload
@@ -31,8 +32,11 @@ cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(
     l1d_size="16kB", l1i_size="16kB", l2_size="256kB"
 )
 
-memory = DRAMSysMem(configuration="pim-hbm2.json", size="4GiB")
-processor = SimpleProcessor(cpu_type=CPUTypes.O3, num_cores=1, isa=ISA.ARM)
+memory = DRAMSysMem(
+    configuration="ext/dramsys/DRAMSys/configs/hbm2-example.json",
+    size="4GiB",
+)
+processor = SimpleProcessor(cpu_type=CPUTypes.TIMING, num_cores=1, isa=ISA.ARM)
 release = ArmDefaultRelease()
 platform = VExpress_GEM5_Foundation()
 
@@ -48,8 +52,8 @@ board = ArmBareMetalBoard(
 # HBM2 requires line size of 32 Bytes
 board.cache_line_size = 32
 
-for core in processor.get_cores():
-    core.core.fetchBufferSize = 32
+#for core in processor.get_cores():
+#    core.core.fetchBufferSize = 32
 
 workload = CustomWorkload(
     "set_baremetal_workload",
