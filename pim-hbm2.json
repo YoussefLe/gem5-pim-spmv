@@ -1,49 +1,12 @@
 {
     "simulation": {
         "addressmapping": {
-            "BANKGROUP_BIT": [
-                28,
-                29
-            ],
-            "BANK_BIT": [
-                26,
-                27
-            ],
-            "BYTE_BIT": [
-                0,
-                1,
-                2
-            ],
-            "COLUMN_BIT": [
-                3,
-                4,
-                5,
-                6,
-                7,
-                8,
-                9
-            ],
-            "PSEUDOCHANNEL_BIT": [
-                30
-            ],
-            "ROW_BIT": [
-                10,
-                11,
-                12,
-                13,
-                14,
-                15,
-                16,
-                17,
-                18,
-                19,
-                20,
-                21,
-                22,
-                23,
-                24,
-                25
-            ]
+            "BANKGROUP_BIT": [28, 29],
+            "BANK_BIT": [26, 27],
+            "BYTE_BIT": [0, 1, 2],
+            "COLUMN_BIT": [3, 4, 5, 6, 7, 8, 9],
+            "PSEUDOCHANNEL_BIT": [30],
+            "ROW_BIT": [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]
         },
         "mcconfig": {
             "Arbiter": "Simple",
@@ -62,51 +25,18 @@
         },
         "memspec": {
             "memarchitecturespec": {
-                "burstLength": 4,
-                "dataRate": 2,
-                "maxBurstLength": 4,
-                "nbrOfBankGroups": 4,
-                "nbrOfBanks": 16,
-                "nbrOfChannels": 1,
-                "nbrOfColumns": 128,
-                "nbrOfDevices": 1,
-                "nbrOfPseudoChannels": 2,
-                "nbrOfRows": 65536,
-                "nbrOfStacks": 1,
-                "width": 64
+                "burstLength": 4, "dataRate": 2, "maxBurstLength": 4, "nbrOfBankGroups": 4,
+                "nbrOfBanks": 16, "nbrOfChannels": 1, "nbrOfColumns": 128, "nbrOfDevices": 1,
+                "nbrOfPseudoChannels": 2, "nbrOfRows": 65536, "nbrOfStacks": 1, "width": 64
             },
-            "memoryId": "https://www.computerbase.de/2019-05/amd-memory-tweak-vram-oc/#bilder",
+            "memoryId": "HBM2_PIM",
             "memoryType": "HBM2",
             "memtimingspec": {
-                "CCDL": 3,
-                "CCDR": 2,
-                "CCDS": 2,
-                "CKE": 8,
-                "DQSCK": 1,
-                "FAW": 16,
-                "PL": 0,
-                "RAS": 28,
-                "RC": 42,
-                "RCDRD": 12,
-                "RCDWR": 6,
-                "REFI": 3900,
-                "REFISB": 244,
-                "RFC": 220,
-                "RFCSB": 96,
-                "RL": 17,
-                "RP": 14,
-                "RRDL": 6,
-                "RRDS": 4,
-                "RREFD": 8,
-                "RTP": 5,
-                "RTW": 18,
-                "WL": 7,
-                "WR": 14,
-                "WTRL": 9,
-                "WTRS": 4,
-                "XP": 8,
-                "XS": 216,
-                "tCK": 1e-9
+                "CCDL": 3, "CCDR": 2, "CCDS": 2, "CKE": 8, "DQSCK": 1, "FAW": 16, "PL": 0,
+                "RAS": 28, "RC": 42, "RCDRD": 12, "RCDWR": 6, "REFI": 3900, "REFISB": 244,
+                "RFC": 220, "RFCSB": 96, "RL": 17, "RP": 14, "RRDL": 6, "RRDS": 4,
+                "RREFD": 8, "RTP": 5, "RTW": 18, "WL": 7, "WR": 14, "WTRL": 9, "WTRS": 4,
+                "XP": 8, "XS": 216, "tCK": 1e-9
             }
         },
         "simconfig": {
@@ -116,28 +46,16 @@
             "Debug": false,
             "EnableWindowing": false,
             "PowerAnalysis": false,
-            "SimulationName": "example",
+            "SimulationName": "pim_spmv_run",
             "SimulationProgressBar": true,
             "StoreMode": "Store",
             "TogglingRate": {
-                "dutyCycleRead": 0.5,
-                "dutyCycleWrite": 0.5,
-                "idlePatternRead": "L",
-                "idlePatternWrite": "L",
-                "togglingRateRead": 0.5,
-                "togglingRateWrite": 0.5
+                "dutyCycleRead": 0.5, "dutyCycleWrite": 0.5, "idlePatternRead": "L",
+                "idlePatternWrite": "L", "togglingRateRead": 0.5, "togglingRateWrite": 0.5
             },
-            "UseMalloc": false,
+            "UseMalloc": true,
             "WindowSize": 1000
         },
-        "simulationid": "hbm2-example",
-        "tracesetup": [
-            {
-                "clkMhz": 1000,
-                "dataLength": 32,
-                "name": "traces/example.stl",
-                "type": "player"
-            }
-        ]
+        "simulationid": "hbm2-pim-core"
     }
 }
