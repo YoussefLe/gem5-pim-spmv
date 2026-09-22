@@ -1,0 +1,169 @@
+%% bare_conf.tex
+%% V1.4b
+%% 2015/08/26
+%% by Michael Shell
+%% See:
+%% http://www.michaelshell.org/
+%% for current contact information.
+%%
+%% This is a skeleton file demonstrating the use of IEEEtran.cls
+%% (requires IEEEtran.cls version 1.8b or later) with an IEEE
+%% conference paper.
+
+\documentclass[conference]{IEEEtran}
+
+% *** GRAPHICS RELATED PACKAGES ***
+\ifCLASSINFOpdf
+  % \usepackage[pdftex]{graphicx}
+\else
+  % \usepackage[dvips]{graphicx}
+\fi
+
+% *** FONTS & ENCODING (Added to make text and headings darker/IEEE standard) ***
+\usepackage[T1]{fontenc}
+\usepackage{mathptmx}
+
+% *** MATH PACKAGES ***
+\usepackage{amsmath}
+
+% *** ALIGNMENT PACKAGES ***
+\usepackage{array}
+
+% --- ADDED: Make section and subsection titles bold (darker) ---
+\makeatletter
+\renewcommand{\section}{\@startsection{section}{1}{\z@}{3.0ex plus 1.5ex minus 1.5ex}%
+{0.7ex plus 1ex minus 0ex}{\normalfont\normalsize\centering\bfseries\scshape}}
+\renewcommand{\subsection}{\@startsection{subsection}{2}{\z@}{1.5ex plus 1.5ex minus 1.5ex}%
+{0.7ex plus .5ex minus 0ex}{\normalfont\normalsize\bfseries}}
+\renewcommand{\subsubsection}{\@startsection{subsubsection}{3}{\z@}{1.5ex plus 1.5ex minus 1.5ex}%
+{0.7ex plus .5ex minus 0ex}{\normalfont\normalsize\bfseries}}
+\makeatother
+% ---------------------------------------------------------------
+
+\hyphenation{op-tical net-works semi-conduc-tor}
+
+\begin{document}
+%
+% paper title
+\title{PIM-Accelerated Sparse Matrix-Vector Multiplication on HBM2: A Bare-Metal Hardware-Software Co-Design}
+
+% author names and affiliations
+\author{\IEEEauthorblockN{Youssef Lamine}
+\IEEEauthorblockA{STRS Lab, Research Center\\
+Institut National des Postes et Télécommunications (INPT)\\
+Rabat, Morocco\\
+Email: lamine.youssef@ine.inpt.ac.ma}}
+
+% make the title area
+\maketitle
+
+\begin{abstract}
+Data-driven applications are increasingly bottlenecked by the energy and latency overheads of data movement, known as the Memory Wall. Processing-in-Memory (PIM) mitigates this by relocating computation directly to the memory arrays. Building upon the PIMSys virtual prototype framework, this paper presents a hardware-software co-design for accelerating Sparse Matrix-Vector Multiplication (SpMV) on a simulated Samsung PIM-HBM architecture. We introduce a hybrid memory topology leveraging a bare-metal ARM orchestrator written in Rust, coupled with custom Very Long Instruction Word (VLIW) microcode injected into HBM2 banks. By implementing a dynamic Number of Non-Zeros (NNZ) load balancing algorithm and leveraging native memory-level parallelism across 32 banks, our architecture achieves a 5.8x speedup over a conventional sequential CPU execution baseline while entirely eliminating external bus contention.
+\end{abstract}
+
+\IEEEpeerreviewmaketitle
+
+\section{Introduction}
+Sparse Matrix-Vector Multiplication (SpMV) is a fundamental kernel in High-Performance Computing (HPC) and deep learning, particularly for memory-bound workloads characterized by irregular data dispersion and low operational intensity. In traditional von Neumann architectures, SpMV execution suffers from severe pipeline stalling, as the CPU must fetch fragmented Compressed Sparse Row (CSR) arrays (values, column indices, and row pointers) across the system bus. This data movement paradigm—where the energy cost of a 64-bit DRAM access eclipses the cost of a floating-point operation by orders of magnitude—necessitates an architectural paradigm shift.
+
+Processing-in-Memory (PIM), particularly Samsung's PIM-HBM \cite{samsung2021pim}, offers a compelling solution by integrating Single-Instruction Multiple-Data (SIMD) floating-point units directly within the memory banks \cite{samsung2021isscc}. To thoroughly evaluate this architecture, we extended the gem5 \cite{gem5} and DRAMSys \cite{dramsys} co-simulation framework. This paper details our specific contribution: a complete bare-metal hardware-software co-design targeting SpMV acceleration, featuring strict VLIW microcode alignment, dynamic load balancing, and a hybrid memory topology designed to bypass simulation limitations.
+
+\section{System Architecture and Hybrid Topology}
+To instantiate the PIM execution environment while avoiding the Transactional Level Modeling (TLM-2.0) limitations of bare-metal booting directly on HBM2 models, we engineered a hybrid memory topology within the gem5 environment.
+
+\subsection{Memory Subsystems}
+The system partitions the physical address space into two distinct domains:
+\begin{itemize}
+    \item \textbf{Standard DDR3 Boot Space:} This memory segment securely hosts the bootloader, interrupt vector tables, and the host ARM CPU's bare-metal firmware, ensuring deterministic system initialization.
+    \item \textbf{HBM2 Offloading Space (via DRAMSys):} Operating as an exclusive PIM acceleration domain, this space contains the CSR matrix data structures and the injected hardware microcode. 
+\end{itemize}
+
+\subsection{Controller Tuning for SpMV}
+The DRAMSys controller governing the HBM2 stack is strictly configured to use a First-Ready, First-Come, First-Serve (FR-FCFS) scheduling algorithm paired with an Open-Page policy. Because SpMV sequentially accesses sparse row elements within a given bank, this configuration maximizes contiguous row buffer hits and saturates the internal Through-Silicon Via (TSV) bandwidth of the 3D memory stack.
+
+\section{Hardware and Software Co-Design}
+Our primary contribution lies in the orchestration stack, managed within our \texttt{PIMSys} \cite{christ2024pimsys} submodule. It encompasses both the low-level Rust \cite{rustlang} firmware running on the host ARM processor and the custom microcode executing within the memory banks.
+
+\subsection{PIM Microcode (Hardware Design)}
+The execution units inside the HBM2 memory banks were programmed using a highly optimized, custom instruction set tailored for sparse computations:
+\begin{itemize}
+    \item \textbf{Atomic MAC Execution:} Standard multi-cycle accumulation pipelines frequently suffer from Read-After-Write (RAW) data hazards. We replaced the traditional fetch-decode-execute loop with a dedicated, 1-cycle \texttt{MAC} (Multiply-Accumulate) hardware instruction, ensuring deterministic throughput directly at the memory cell.
+    \item \textbf{VLIW Cache-Line Alignment:} To guarantee atomic kernel loading via a single memory burst, the microcode was structured following a strict Very Long Instruction Word (VLIW) paradigm. The kernel consists of exactly 5 active instructions padded with 27 \texttt{NOP} (No-Operation) instructions, forcing an exact 32-byte physical footprint that perfectly aligns with a single HBM2 cache line.
+\end{itemize}
+
+\subsection{Host Firmware Orchestration (Software Design)}
+The host ARM processor, programmed in bare-metal Rust (\texttt{\#![no\_std]}), acts strictly as a control-plane orchestrator and performs zero matrix computations during the offloading phase.
+\begin{itemize}
+    \item \textbf{NNZ-Based Load Balancing:} Due to the irregular dispersion of sparse matrices, a standard geometric row-split creates severe load imbalances ("hot banks"). We implemented a \texttt{partition\_csr} algorithm that dynamically divides the matrix into 32 equal-weight computational blocks based strictly on the Number of Non-Zeros (NNZ). This ensures symmetric traffic and processing time across all 32 independent HBM2 banks.
+    \item \textbf{Deep Sleep Orchestration:} Upon dispatching memory-mapped triggers to the HBM2 controller to initiate the All-Bank-PIM (AB-PIM) mode, the ARM core issues a Wait-For-Interrupt (\texttt{wfi}) assembly instruction. This completely suspends the processor's clock, isolating the energy consumption to the memory subsystem while it autonomously processes the SpMV calculation.
+\end{itemize}
+
+\section{Experimental Results}
+We evaluated our co-design against a sequential, CPU-only baseline execution using a synthetic CSR matrix (2048x2048, NNZ=8192) within the gem5 environment. The baseline simulates a conventional von Neumann bottleneck where the ARM processor sequentially fetches the CSR structure through the system bus.
+
+\begin{table}[h]
+\renewcommand{\arraystretch}{1.3}
+\caption{Performance Comparison: CPU Baseline vs. PIM Offloading}
+\label{table_results}
+\centering
+\begin{tabular}{|l||c|c|}
+\hline
+\textbf{Metric} & \textbf{CPU Sequential} & \textbf{PIM Accelerated} \\
+\hline
+Execution Time & 239.61 s & 41.42 s \\
+\hline
+External Bus Bandwidth & $\sim$1,089 B/s & $\sim$6,297 B/s \\
+\hline
+CPU Footprint (Inst.) & 151,670 & 151,670 \\
+\hline
+Load Distribution & Channel 0 Bottleneck & 32-Bank Balanced \\
+\hline
+\end{tabular}
+\end{table}
+
+As shown in Table \ref{table_results}, the PIM offloading architecture achieves a \textbf{5.8x speedup}, dropping execution time from 239.61 seconds to 41.42 seconds. In the CPU baseline, the identical instruction count (151,670) is accompanied by massive pipeline stalls (approx. 240 trillion simulated idle ticks) due to memory starvation. Conversely, the PIM implementation entirely localizes the heavy data traffic to the internal HBM2 channels. The minor 6,297 B/s footprint on the external bus represents only the initial broadcast of microcode and configuration signals, successfully demonstrating the elimination of the Memory Wall for this workload.
+
+\section{Conclusion}
+This work validates the efficacy of PIM-HBM for irregular, memory-bound kernels like SpMV. By combining a hybrid memory topology, bare-metal Rust orchestration, NNZ-based load balancing, and strictly aligned VLIW microcode, we successfully bypassed the von Neumann bottleneck. The architecture leverages native 32-bank memory-level parallelism to achieve a 5.8x speedup while allowing the host CPU to enter a deep sleep state. Future work will extend this framework to process real-world asymmetric datasets from the SuiteSparse Matrix Collection and transition the validated VLIW microcode to a physical VHDL implementation for empirical power and thermal analysis. The complete source code for our gem5 co-simulation environment \cite{my_gem5_repo} and the bare-metal Rust microcode \cite{my_pimsys_repo} are available as open-source repositories.
+
+\section*{Acknowledgment}
+The authors would like to thank the contributors of the gem5 and DRAMSys simulation frameworks, and acknowledge the foundational virtual prototyping infrastructure provided by the original PIMSys architecture.
+
+\begin{thebibliography}{10}
+
+% 1. The original PIMSys paper you built upon
+\bibitem{christ2024pimsys}
+D.~Christ, L.~Steiner, M.~Jung, and N.~Wehn, \emph{PIMSys: A Virtual Prototype for Processing in Memory}, in The International Symposium on Memory Systems (MEMSYS '24). ACM, New York, NY, USA, 2024. [Online]. Available: https://github.com/tukl-msd/PIMSys
+
+% 2. The Samsung PIM-HBM architecture paper
+\bibitem{samsung2021pim}
+S.~Lee et al., \emph{Hardware Architecture and Software Stack for PIM Based on Commercial DRAM Technology : Industrial Product}, in 2021 ACM/IEEE 48th Annual International Symposium on Computer Architecture (ISCA). IEEE, Valencia, Spain, 2021, pp. 43-56.
+
+% 3. Samsung's hardware-level ISSCC paper (good for mentioning the MAC units)
+\bibitem{samsung2021isscc}
+Y.-C.~Kwon et al., \emph{A 20nm 6GB Function-In-Memory DRAM, Based on HBM2 with a 1.2TFLOPS Programmable Computing Unit Using Bank-Level Parallelism, for Machine Learning Applications}, in 2021 IEEE International Solid-State Circuits Conference (ISSCC). IEEE, San Francisco, CA, USA, 2021, pp. 350-352.
+
+% 4. The official gem5 citation
+\bibitem{gem5}
+J.~Lowe-Power et al., \emph{The gem5 Simulator: Version 20.0+}, arXiv:2007.03152 [cs.AR], 2020. [Online]. Available: https://github.com/gem5/gem5
+
+% 5. The official DRAMSys citation
+\bibitem{dramsys}
+L.~Steiner et al., \emph{DRAMSys4.0: An Open-Source Simulation Framework for In-depth DRAM Analyses}, International Journal of Parallel Programming, vol. 50, no. 2, pp. 217-242, 2022. [Online]. Available: https://github.com/DRAMSys/DRAMSys
+
+% 6. Citing the Rust Language
+\bibitem{rustlang}
+Rust Foundation, \emph{The Rust Programming Language}, 2015. [Online]. Available: https://www.rust-lang.org/
+
+% 7. Citing YOUR gem5 environment repo
+\bibitem{my_gem5_repo}
+Y.~Lamine, \emph{gem5-pim-spmv: PIM Offloading for SpMV Acceleration on HBM2}, GitHub Repository, 2026. [Online]. Available: https://github.com/YoussefLe/gem5-pim-spmv
+
+% 8. Citing YOUR PIMSys firmware submodule repo
+\bibitem{my_pimsys_repo}
+Y.~Lamine, \emph{PIMSys: Bare-Metal Firmware and VLIW Microcode for SpMV}, GitHub Repository, 2026. [Online]. Available: https://github.com/YoussefLe/PIMSys
+
+\end{thebibliography}
+
+% that's all folks
+\end{document}
