@@ -18,7 +18,6 @@ from gem5.components.processors.simple_processor import SimpleProcessor
 from gem5.simulate.exit_event import ExitEvent
 from dataclasses import dataclass
 
-# L'import 100% robuste de la bibliothèque standard gem5
 from gem5.components.memory.single_channel import SingleChannelDDR3_1600
 
 from pim_config import Statistics
